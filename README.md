@@ -25,3 +25,4 @@ With the plugin enabled, you can explicitly instruct the assistant to search the
 Pagination is also supported which allows the assistant to provide more results if needed.
 
 This plugin works well in combination with the [Visit Website Tool](https://github.com/danielsig/lms-plugin-visit-website) which can be used to extract basic content from URLs.
+# DeepSearch
