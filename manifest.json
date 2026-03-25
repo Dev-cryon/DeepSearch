@@ -1,0 +1,10 @@
+{
+  "name": "duckduckgo",
+  "version": "1.0.0",
+  "description": "LM Studio plugin that allows LLMs to search DuckDuckGo, automatically scrape the top 3 results, and visit generic websites.",
+  "entry": "src/index.ts",
+  "type": "plugin",
+  "runner": "node",
+  "owner": "professor-fizzwizzle",
+  "revision": 6
+}
