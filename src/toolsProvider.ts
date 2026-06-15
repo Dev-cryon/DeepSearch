@@ -81,13 +81,16 @@ export async function toolsProvider(ctl:ToolsProviderController):Promise<Tool[]>
 				}
 				const html = await response.text();
 				const links: [string, string][] = [];
+				const seenLinks = new Set<string>(); // ⚡ O(1) deduplication
 				const regex = /\shref="[^"]*(https?[^?&"]+)[^>]*>([^<]*)/gm;
 				let match;
 				while (links.length < pageSize && (match = regex.exec(html))) {
 					const label = match[2].replace(/\s+/g, " ").trim();
 					const linkUrl = decodeURIComponent(match[1]);
-					if(!links.some(([,existingUrl]) => existingUrl === linkUrl))
+					if (!seenLinks.has(linkUrl)) {
+						seenLinks.add(linkUrl);
 						links.push([label, linkUrl]);
+					}
 				}
 				if (links.length === 0) {
 					return "No web pages found for the query.";
@@ -303,7 +306,7 @@ export async function toolsProvider(ctl:ToolsProviderController):Promise<Tool[]>
 					}
 				});
 				const downloadedImageMarkdowns = (await Promise.all(downloadPromises))
-					.map((x, i) => x
+					.map((x: string | null, i: number) => x
 						? `![Image ${i + 1}](${x})`
 						: 'Error fetching image from URL: ' + imageURLsToDownload[i]
 					);
@@ -514,8 +517,16 @@ const extractLinks = (body:string, url:string, maxLinks:number, searchTerms?:str
 			};
 		})
 		.sort((a, b) => b.score - a.score) 
-		.filter((x, i, arr) =>
-			!arr.find((y, j) => j < i && y.link === x.link)
+		.filter(
+			// ⚡ O(1) deduplication using Set
+			(() => {
+				const seen = new Set<string>();
+				return (x: { link: string; label: string; index: number; score: number }) => {
+					if (seen.has(x.link)) return false;
+					seen.add(x.link);
+					return true;
+				};
+			})()
 		)
 		.slice(0, maxLinks) 
 		.map(({ label, link }) => [label, link] as [string, string]);
