@@ -81,13 +81,16 @@ export async function toolsProvider(ctl:ToolsProviderController):Promise<Tool[]>
 				}
 				const html = await response.text();
 				const links: [string, string][] = [];
+				const seenUrls = new Set<string>(); // Performance optimization: Use Set for O(1) lookups instead of O(N) Array.some inside the loop
 				const regex = /\shref="[^"]*(https?[^?&"]+)[^>]*>([^<]*)/gm;
 				let match;
 				while (links.length < pageSize && (match = regex.exec(html))) {
 					const label = match[2].replace(/\s+/g, " ").trim();
 					const linkUrl = decodeURIComponent(match[1]);
-					if(!links.some(([,existingUrl]) => existingUrl === linkUrl))
+					if (!seenUrls.has(linkUrl)) {
+						seenUrls.add(linkUrl);
 						links.push([label, linkUrl]);
+					}
 				}
 				if (links.length === 0) {
 					return "No web pages found for the query.";
@@ -303,7 +306,7 @@ export async function toolsProvider(ctl:ToolsProviderController):Promise<Tool[]>
 					}
 				});
 				const downloadedImageMarkdowns = (await Promise.all(downloadPromises))
-					.map((x, i) => x
+					.map((x: string | null, i: number) => x
 						? `![Image ${i + 1}](${x})`
 						: 'Error fetching image from URL: ' + imageURLsToDownload[i]
 					);
@@ -437,13 +440,15 @@ export async function toolsProvider(ctl:ToolsProviderController):Promise<Tool[]>
 				
 				const html = await response.text();
 				const linksToVisit: string[] = [];
+				const seenUrls = new Set<string>(); // Performance optimization: Use Set for O(1) lookups instead of O(N) Array.includes inside the loop
 				const regex = /\shref="[^"]*(https?[^?&"]+)[^>]*>([^<]*)/gm;
 				let match;
 				
 				// Extract top 3 links
 				while (linksToVisit.length < 3 && (match = regex.exec(html))) {
 					const extractedUrl = decodeURIComponent(match[1]);
-					if(!linksToVisit.includes(extractedUrl)) {
+					if (!seenUrls.has(extractedUrl)) {
+						seenUrls.add(extractedUrl);
 						linksToVisit.push(extractedUrl);
 					}
 				}
