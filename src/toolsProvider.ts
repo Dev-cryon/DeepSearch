@@ -491,7 +491,7 @@ export async function toolsProvider(ctl:ToolsProviderController):Promise<Tool[]>
 const undefinedIfAuto = (value: unknown, autoValue: unknown) =>
 	value === autoValue ? undefined : value as undefined;
 
-const extractLinks = (body:string, url:string, maxLinks:number, searchTerms?:string[]) =>
+export const extractLinks = (body:string, url:string, maxLinks:number, searchTerms?:string[]) =>
 	[...body.matchAll(/<a\s+[^>]*?href="([^"]+)"[^>]*>((?:\n|.)*?)<\/a>/g)]
 		.map((match, index) => ({
 			index,
