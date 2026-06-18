@@ -81,13 +81,17 @@ export async function toolsProvider(ctl:ToolsProviderController):Promise<Tool[]>
 				}
 				const html = await response.text();
 				const links: [string, string][] = [];
+				// ⚡ Bolt: Use a Set for O(1) deduplication of search results
+				const seenLinks = new Set<string>();
 				const regex = /\shref="[^"]*(https?[^?&"]+)[^>]*>([^<]*)/gm;
 				let match;
 				while (links.length < pageSize && (match = regex.exec(html))) {
 					const label = match[2].replace(/\s+/g, " ").trim();
 					const linkUrl = decodeURIComponent(match[1]);
-					if(!links.some(([,existingUrl]) => existingUrl === linkUrl))
+					if(!seenLinks.has(linkUrl)) {
+						seenLinks.add(linkUrl);
 						links.push([label, linkUrl]);
+					}
 				}
 				if (links.length === 0) {
 					return "No web pages found for the query.";
@@ -514,9 +518,15 @@ const extractLinks = (body:string, url:string, maxLinks:number, searchTerms?:str
 			};
 		})
 		.sort((a, b) => b.score - a.score) 
-		.filter((x, i, arr) =>
-			!arr.find((y, j) => j < i && y.link === x.link)
-		)
+		// ⚡ Bolt: Replaced O(n²) array.find with O(n) Set lookup for duplicate removal
+		.filter((() => {
+			const seen = new Set();
+			return (x: {link: string}) => {
+				if (seen.has(x.link)) return false;
+				seen.add(x.link);
+				return true;
+			};
+		})())
 		.slice(0, maxLinks) 
 		.map(({ label, link }) => [label, link] as [string, string]);
 
