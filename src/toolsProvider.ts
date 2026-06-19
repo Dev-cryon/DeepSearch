@@ -81,13 +81,16 @@ export async function toolsProvider(ctl:ToolsProviderController):Promise<Tool[]>
 				}
 				const html = await response.text();
 				const links: [string, string][] = [];
+				const seenUrls = new Set<string>(); // ⚡ Bolt: O(1) deduplication lookup
 				const regex = /\shref="[^"]*(https?[^?&"]+)[^>]*>([^<]*)/gm;
 				let match;
 				while (links.length < pageSize && (match = regex.exec(html))) {
 					const label = match[2].replace(/\s+/g, " ").trim();
 					const linkUrl = decodeURIComponent(match[1]);
-					if(!links.some(([,existingUrl]) => existingUrl === linkUrl))
+					if(!seenUrls.has(linkUrl)) {
+						seenUrls.add(linkUrl);
 						links.push([label, linkUrl]);
+					}
 				}
 				if (links.length === 0) {
 					return "No web pages found for the query.";
@@ -513,10 +516,16 @@ const extractLinks = (body:string, url:string, maxLinks:number, searchTerms?:str
 					|| score,
 			};
 		})
-		.sort((a, b) => b.score - a.score) 
-		.filter((x, i, arr) =>
-			!arr.find((y, j) => j < i && y.link === x.link)
-		)
+		.sort((a, b) => b.score - a.score)
+		// ⚡ Bolt: Replace O(n²) arr.find() with O(n) filter using O(1) Set lookup
+		.filter((() => {
+			const seenUrls = new Set<string>();
+			return (x: { link: string }) => {
+				if (seenUrls.has(x.link)) return false;
+				seenUrls.add(x.link);
+				return true;
+			};
+		})())
 		.slice(0, maxLinks) 
 		.map(({ label, link }) => [label, link] as [string, string]);
 
