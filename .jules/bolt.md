@@ -1,0 +1,3 @@
+## 2025-02-19 - Link Deduplication Anti-Pattern
+**Learning:** Found a performance bottleneck in the `extractLinks` function where deduplication was being performed using `.filter((x, i, arr) => !arr.find((y, j) => j < i && y.link === x.link))`. Since HTML parsing can return thousands of links, this O(n²) array operation can severely lag the main thread when traversing heavy websites. A similar pattern existed in `duckDuckGoWebSearchTool`.
+**Action:** When extracting data (like links or images) from a web scrape where volume can be high, always use `Set` for deduplication. This changes an O(n²) bottleneck to an O(n) operation with O(1) lookups.
