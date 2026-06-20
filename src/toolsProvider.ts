@@ -81,13 +81,16 @@ export async function toolsProvider(ctl:ToolsProviderController):Promise<Tool[]>
 				}
 				const html = await response.text();
 				const links: [string, string][] = [];
+				const seenUrls = new Set<string>(); // O(1) deduplication cache
 				const regex = /\shref="[^"]*(https?[^?&"]+)[^>]*>([^<]*)/gm;
 				let match;
 				while (links.length < pageSize && (match = regex.exec(html))) {
 					const label = match[2].replace(/\s+/g, " ").trim();
 					const linkUrl = decodeURIComponent(match[1]);
-					if(!links.some(([,existingUrl]) => existingUrl === linkUrl))
+					if(!seenUrls.has(linkUrl)) {
+						seenUrls.add(linkUrl);
 						links.push([label, linkUrl]);
+					}
 				}
 				if (links.length === 0) {
 					return "No web pages found for the query.";
@@ -514,9 +517,15 @@ const extractLinks = (body:string, url:string, maxLinks:number, searchTerms?:str
 			};
 		})
 		.sort((a, b) => b.score - a.score) 
-		.filter((x, i, arr) =>
-			!arr.find((y, j) => j < i && y.link === x.link)
-		)
+		// O(n) deduplication using Set (improves perf for large lists over O(n^2) .find)
+		.filter((() => {
+			const seen = new Set<string>();
+			return (x: {link: string}) => {
+				if (seen.has(x.link)) return false;
+				seen.add(x.link);
+				return true;
+			};
+		})())
 		.slice(0, maxLinks) 
 		.map(({ label, link }) => [label, link] as [string, string]);
 
