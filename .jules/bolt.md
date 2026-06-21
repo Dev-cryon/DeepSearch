@@ -1,0 +1,3 @@
+## 2025-06-21 - [O(n^2) deduplication replaced with Set]
+**Learning:** O(n^2) array deduplication patterns (e.g., using `.find` or `.some` within loops or filters) for frequently extracted items like links can cause severe performance bottlenecks, scaling poorly with large numbers of elements.
+**Action:** Prefer O(1) `Set` lookups instead of array iterations for deduplication to prevent performance bottlenecks.
