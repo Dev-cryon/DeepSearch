@@ -81,13 +81,16 @@ export async function toolsProvider(ctl:ToolsProviderController):Promise<Tool[]>
 				}
 				const html = await response.text();
 				const links: [string, string][] = [];
+				const seenUrls = new Set<string>(); // Used for O(1) deduplication
 				const regex = /\shref="[^"]*(https?[^?&"]+)[^>]*>([^<]*)/gm;
 				let match;
 				while (links.length < pageSize && (match = regex.exec(html))) {
 					const label = match[2].replace(/\s+/g, " ").trim();
 					const linkUrl = decodeURIComponent(match[1]);
-					if(!links.some(([,existingUrl]) => existingUrl === linkUrl))
+					if (!seenUrls.has(linkUrl)) {
+						seenUrls.add(linkUrl);
 						links.push([label, linkUrl]);
+					}
 				}
 				if (links.length === 0) {
 					return "No web pages found for the query.";
@@ -491,8 +494,9 @@ export async function toolsProvider(ctl:ToolsProviderController):Promise<Tool[]>
 const undefinedIfAuto = (value: unknown, autoValue: unknown) =>
 	value === autoValue ? undefined : value as undefined;
 
-const extractLinks = (body:string, url:string, maxLinks:number, searchTerms?:string[]) =>
-	[...body.matchAll(/<a\s+[^>]*?href="([^"]+)"[^>]*>((?:\n|.)*?)<\/a>/g)]
+const extractLinks = (body:string, url:string, maxLinks:number, searchTerms?:string[]) => {
+	const seenLinks = new Set<string>(); // Used for O(1) deduplication
+	return [...body.matchAll(/<a\s+[^>]*?href="([^"]+)"[^>]*>((?:\n|.)*?)<\/a>/g)]
 		.map((match, index) => ({
 			index,
 			label: match[2]?.replace(/\\[ntr]|\s|<(?:[^>"]|"[^"]*")+>/g, " ").trim() || "",
@@ -514,11 +518,14 @@ const extractLinks = (body:string, url:string, maxLinks:number, searchTerms?:str
 			};
 		})
 		.sort((a, b) => b.score - a.score) 
-		.filter((x, i, arr) =>
-			!arr.find((y, j) => j < i && y.link === x.link)
-		)
+		.filter(x => {
+			if (seenLinks.has(x.link)) return false;
+			seenLinks.add(x.link);
+			return true;
+		})
 		.slice(0, maxLinks) 
 		.map(({ label, link }) => [label, link] as [string, string]);
+};
 
 const extractImages = (body:string, url:string, maxImages:number, searchTerms?:string[]) =>
 	[...body.matchAll(/<img(\s+[^>]*)/g)]
