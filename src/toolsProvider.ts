@@ -514,9 +514,12 @@ const extractLinks = (body:string, url:string, maxLinks:number, searchTerms?:str
 			};
 		})
 		.sort((a, b) => b.score - a.score) 
-		.filter((x, i, arr) =>
-			!arr.find((y, j) => j < i && y.link === x.link)
-		)
+		// Optimization: O(n) link deduplication using Set lookup instead of O(n^2) nested array search
+		// Reduces maxLinks processing time substantially for large arrays
+		.filter((() => {
+			const seen = new Set<string>();
+			return (x: { link: string; label: string; score: number; index: number; }) => !seen.has(x.link) && seen.add(x.link);
+		})())
 		.slice(0, maxLinks) 
 		.map(({ label, link }) => [label, link] as [string, string]);
 
