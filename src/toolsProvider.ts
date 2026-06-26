@@ -83,11 +83,14 @@ export async function toolsProvider(ctl:ToolsProviderController):Promise<Tool[]>
 				const links: [string, string][] = [];
 				const regex = /\shref="[^"]*(https?[^?&"]+)[^>]*>([^<]*)/gm;
 				let match;
+				const seenUrls = new Set<string>(); // ⚡ Bolt: O(1) deduplication
 				while (links.length < pageSize && (match = regex.exec(html))) {
 					const label = match[2].replace(/\s+/g, " ").trim();
 					const linkUrl = decodeURIComponent(match[1]);
-					if(!links.some(([,existingUrl]) => existingUrl === linkUrl))
+					if (!seenUrls.has(linkUrl)) {
+						seenUrls.add(linkUrl);
 						links.push([label, linkUrl]);
+					}
 				}
 				if (links.length === 0) {
 					return "No web pages found for the query.";
@@ -514,8 +517,16 @@ const extractLinks = (body:string, url:string, maxLinks:number, searchTerms?:str
 			};
 		})
 		.sort((a, b) => b.score - a.score) 
-		.filter((x, i, arr) =>
-			!arr.find((y, j) => j < i && y.link === x.link)
+		.filter(
+			// ⚡ Bolt: O(1) Set lookup for deduplication instead of O(n^2) nested array find
+			(() => {
+				const seen = new Set<string>();
+				return (x) => {
+					if (seen.has(x.link)) return false;
+					seen.add(x.link);
+					return true;
+				};
+			})()
 		)
 		.slice(0, maxLinks) 
 		.map(({ label, link }) => [label, link] as [string, string]);
