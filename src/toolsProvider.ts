@@ -81,13 +81,17 @@ export async function toolsProvider(ctl:ToolsProviderController):Promise<Tool[]>
 				}
 				const html = await response.text();
 				const links: [string, string][] = [];
+				const seenLinks = new Set<string>();
 				const regex = /\shref="[^"]*(https?[^?&"]+)[^>]*>([^<]*)/gm;
 				let match;
 				while (links.length < pageSize && (match = regex.exec(html))) {
 					const label = match[2].replace(/\s+/g, " ").trim();
 					const linkUrl = decodeURIComponent(match[1]);
-					if(!links.some(([,existingUrl]) => existingUrl === linkUrl))
+					// ⚡ Bolt: O(1) deduplication lookup for better performance
+					if (!seenLinks.has(linkUrl)) {
+						seenLinks.add(linkUrl);
 						links.push([label, linkUrl]);
+					}
 				}
 				if (links.length === 0) {
 					return "No web pages found for the query.";
@@ -437,13 +441,16 @@ export async function toolsProvider(ctl:ToolsProviderController):Promise<Tool[]>
 				
 				const html = await response.text();
 				const linksToVisit: string[] = [];
+				const seenLinks = new Set<string>();
 				const regex = /\shref="[^"]*(https?[^?&"]+)[^>]*>([^<]*)/gm;
 				let match;
 				
 				// Extract top 3 links
 				while (linksToVisit.length < 3 && (match = regex.exec(html))) {
 					const extractedUrl = decodeURIComponent(match[1]);
-					if(!linksToVisit.includes(extractedUrl)) {
+					// ⚡ Bolt: O(1) deduplication lookup for better performance
+					if (!seenLinks.has(extractedUrl)) {
+						seenLinks.add(extractedUrl);
 						linksToVisit.push(extractedUrl);
 					}
 				}
@@ -514,9 +521,15 @@ const extractLinks = (body:string, url:string, maxLinks:number, searchTerms?:str
 			};
 		})
 		.sort((a, b) => b.score - a.score) 
-		.filter((x, i, arr) =>
-			!arr.find((y, j) => j < i && y.link === x.link)
-		)
+		// ⚡ Bolt: Using Set for O(N) deduplication rather than O(N^2) arr.find
+		.filter(function () {
+			const seen = new Set<string>();
+			return (x: any) => {
+				if (seen.has(x.link)) return false;
+				seen.add(x.link);
+				return true;
+			};
+		}())
 		.slice(0, maxLinks) 
 		.map(({ label, link }) => [label, link] as [string, string]);
 
