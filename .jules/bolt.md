@@ -1,0 +1,3 @@
+## 2024-06-25 - O(n^2) array deduplication bottleneck in `extractLinks`
+**Learning:** Found a specific performance bottleneck where `.find()` was being used inside a `.filter()` to deduplicate links. This created an O(n^2) operation that would scale poorly when visiting pages with many links, causing unnecessary main thread blocking while fetching results in `toolsProvider.ts`.
+**Action:** Always replace O(n^2) nested array operations with O(1) Set lookups when deduplicating properties like links or ids. Be careful to define the Set outside the array processing pipeline to avoid TypeScript `ImplicitAny` contextual type inference issues.
