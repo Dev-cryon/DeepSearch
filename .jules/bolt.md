@@ -1,0 +1,3 @@
+## 2024-03-24 - O(n^2) deduplication bottlenecks in regex-matched arrays
+**Learning:** Found multiple instances where `Array.prototype.find` and `Array.prototype.some` were being used inside loops or functional chains to deduplicate URLs and links, resulting in O(n^2) performance when parsing large HTML payloads (e.g., from DuckDuckGo search results).
+**Action:** Replace `Array.prototype.some` and `Array.prototype.find` with `Set` lookups inside loops or `.filter` calls when deduplicating large sets of items to guarantee O(1) time complexity. Ensure Sets are instantiated outside of loops or functional chains.
